@@ -20,12 +20,33 @@ COLOR_BOLD = "\033[1m"
 
 
 class CyberGameEngine:
-    def __init__(self, quest_filepath: str = None, use_ai: bool = True):
-        # Метаданные квеста для отображения в баннере
-        self.quest = {
-            "title": "WPA2 Handshake & Hashcat Brute-Force",
-            "description": "WPA2 tarmog'ini buzish: tarmoq kartasini monitoring rejimiga o'tkazish, handshake ushlash va Hashcat orqali parolni topish."
-        }
+    def __init__(self, mode: str = "attack", quest_filepath: str = None, use_ai: bool = True):
+        self.mode = mode.lower()
+        self.use_ai = use_ai
+        self.api_key = os.getenv("GROQ_API_KEY")
+        self.api_url = "https://api.groq.com/openai/v1/chat/completions"
+
+        # Конфигурация квеста в зависимости от режима
+        if self.mode == "attack":
+            self.quest = {
+                "title": "WPA2 Handshake & Hashcat Brute-Force (Hujum)",
+                "description": "WPA2 tarmog'ini buzish: tarmoq kartasini monitoring rejimiga o'tkazish, handshake ushlash va Hashcat orqali parolni topish."
+            }
+            self.state = {
+                "monitor_mode": False,
+                "handshake_captured": False,
+                "cracked": False
+            }
+        else:
+            self.quest = {
+                "title": "Wi-Fi Tarmog'ini Himoyalash va Deauth-Detection (Himoya)",
+                "description": "Tarmoqqa bo'layotgan Deauth hujumini aniqlash, WPS zayıfligini yopish va 802.11w (PMF) xavfsizlik standartini yoqish."
+            }
+            self.state = {
+                "monitor_mode": False,
+                "attack_detected": False,
+                "hardened": False
+            }
 
         if quest_filepath and os.path.exists(quest_filepath):
             try:
@@ -36,37 +57,38 @@ class CyberGameEngine:
             except Exception:
                 pass
 
-        # Состояние игровой системы
-        self.state = {
-            "monitor_mode": False,
-            "handshake_captured": False,
-            "cracked": False
-        }
-
-        self.use_ai = use_ai
-        self.api_key = os.getenv("GROQ_API_KEY")
-        self.api_url = "https://api.groq.com/openai/v1/chat/completions"
-
     def get_current_instruction(self) -> str:
         """Динамическое вычисление текущей цели."""
-        if self.state["cracked"]:
-            return "Kvest muvaffaqiyatli yakunlandi! WPA2 paroli topildi."
-        elif not self.state["monitor_mode"]:
-            return "wlan0 tarmoq kartasida monitor rejimini yoqing (airmon-ng)."
-        elif not self.state["handshake_captured"]:
-            return "Atrofdagi tarmoqlarni skanerlang va WPA2 handshake ushlang (airodump-ng)."
+        if self.mode == "attack":
+            if self.state["cracked"]:
+                return "Kvest muvaffaqiyatli yakunlandi! WPA2 paroli topildi."
+            elif not self.state["monitor_mode"]:
+                return "wlan0 tarmoq kartasida monitor rejimini yoqing (airmon-ng)."
+            elif not self.state["handshake_captured"]:
+                return "Atrofdagi tarmoqlarni skanerlang va WPA2 handshake ushlang (airodump-ng)."
+            else:
+                return "Ushlangan handshake faylini Hashcat yordamida brutforz qiling."
         else:
-            return "Ushlangan handshake faylini Hashcat yordamida brutforz qiling."
+            if self.state["hardened"]:
+                return "Kvest muvaffaqiyatli yakunlandi! Tarmoq Deauth va WPS hujumlaridan himoyalandi."
+            elif not self.state["monitor_mode"]:
+                return "wlan0 tarmoq kartasida monitor rejimini yoqing (airmon-ng)."
+            elif not self.state["attack_detected"]:
+                return "Tarmoqdagi Deauth hujumlarini va shubhali paketlarni aniqlang (waidps yoki tshark)."
+            else:
+                return "WPS funksiyasini o'chiring va 802.11w (PMF) himoyasini yoqing (wps_cli yoki hostapd)."
 
     def is_completed(self) -> bool:
-        return self.state["cracked"]
+        if self.mode == "attack":
+            return self.state["cracked"]
+        else:
+            return self.state["hardened"]
 
     def _clean_ai_response(self, text: str) -> str:
         """Очистка ответа ИИ без обрезания незавершённых мыслей."""
         if not text:
             return ""
 
-        # Удаляем размышления <think>
         text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
 
         forbidden_keywords = [
@@ -129,6 +151,26 @@ class CyberGameEngine:
         print(f"\n\n{COLOR_GREEN}[+] Status: Cracked!{COLOR_RESET}")
         print(f"{COLOR_GREEN}[+] Key.Mode: 001122334455:HomeWiFi:supersecret123{COLOR_RESET}\n")
 
+    def _simulate_deauth_detection(self, delay_sec: int = 3):
+        """Симуляция работы детектора атак (IDS/tshark)."""
+        print(f"\n[*] Tarmoq efiri va management freymlari tahlil qilinmoqda... ({delay_sec}s)")
+        spinners = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+        steps = 25
+        sleep_time = delay_sec / steps
+
+        for i in range(1, steps + 1):
+            percent = int((i / steps) * 100)
+            filled = int((percent / 100) * 20)
+            bar = "=" * filled + ">" + " " * (20 - filled)
+            spin = spinners[i % len(spinners)]
+
+            status_line = f"\r{COLOR_CYAN}{spin} [{bar}] {percent}% [Analyzing Management Frames...]{COLOR_RESET}"
+            sys.stdout.write(status_line)
+            sys.stdout.flush()
+            time.sleep(sleep_time)
+
+        print("\n")
+
     def _simulate_generic_scan(self, delay_sec: int = 3):
         """Анимация сканирования сети."""
         print(f"\n[*] Tarmoq paketi va Handshake ushlanmoqda... ({delay_sec} soniya)")
@@ -150,17 +192,14 @@ class CyberGameEngine:
         print("\n")
 
     def _get_groq_ai_hint(self, user_cmd: str) -> str:
-        """Запрос к Groq API для генерации полнотекстовой подсказки."""
+        """Запрос к Groq API для генерации подсказки."""
         if not self.api_key:
             return "Buyruq sintaksisini va joriy bosqichni tekshiring."
 
-        state_desc = (
-            f"Monitor mode: {'Yoqilgan (wlan0mon)' if self.state['monitor_mode'] else 'Yoqilmagan'}. "
-            f"Handshake fayli: {'Mavjud (handshake.hc22000)' if self.state['handshake_captured'] else 'Ushlanmagan/Mavjud emas'}."
-        )
-
+        mode_desc = "Hujum (Attack)" if self.mode == "attack" else "Himoya (Defense)"
+        
         system_instruction = (
-            "Siz CyberEdu.ai платформасининг киберхавфсизлик бўйича ИИ-устозисиз.\n"
+            f"Siz CyberEdu.ai platformasining {mode_desc} rejimida ishlayotgan ИИ-устозисиз.\n"
             "ҚОИДАЛАР:\n"
             "1. Ўзбек тилида ТОЛИҚ, ТУГАЛЛАНГАН ва тушунарли 1-3 жумладан иборат маслаҳат беринг.\n"
             "2. ЖУМЛАНИ ЯРИМ ЙЎЛДА ТЎХТАТИБ ҚЎЙМАНГ! Фикрингизни охиригача етказинг.\n"
@@ -170,7 +209,7 @@ class CyberGameEngine:
         )
 
         user_content = (
-            f"Тизим ҳолати: {state_desc}\n"
+            f"Тизим мақсади: {self.get_current_instruction()}\n"
             f"Фойдаланувчи киритган буйруқ: {user_cmd}"
         )
 
@@ -209,26 +248,7 @@ class CyberGameEngine:
         if self.is_completed():
             return {"status": "completed", "output": "Kvest allaqachon muvaffaqiyatli yakunlangan!"}
 
-        # 1. ls
-        if clean_cmd == "ls" or clean_cmd.startswith("ls "):
-            if self.state["handshake_captured"]:
-                output = f"{COLOR_CYAN}handshake.hc22000{COLOR_RESET}  wordlist.txt"
-                hint = "Fayllar mavjud. Endi Hashcat yordamida parolni buzishingiz mumkin."
-            else:
-                output = "wordlist.txt"
-                hint = (
-                    "Hozircha katalogda xesh fayli yo'q. Avval airmon-ng orqali monitor rejimini yoqing "
-                    "va airodump-ng yordamida handshake ushlang."
-                )
-
-            return {
-                "status": "info",
-                "output": output,
-                "hint": f"{COLOR_GREEN}{hint}{COLOR_RESET}",
-                "next_instruction": self.get_current_instruction()
-            }
-
-        # 2. pwd, whoami, clear
+        # Общие команды
         if clean_cmd == "pwd":
             return {"status": "info", "output": "/root/Desktop/Cyberedu.ai", "next_instruction": self.get_current_instruction()}
         if clean_cmd == "whoami":
@@ -237,66 +257,115 @@ class CyberGameEngine:
             os.system("clear")
             return {"status": "info", "output": "", "next_instruction": self.get_current_instruction()}
 
-        # 3. airmon-ng
-        if "airmon-ng" in clean_cmd:
-            if "start" in clean_cmd and ("wlan0" in clean_cmd or "wlan0mon" in clean_cmd):
-                self.state["monitor_mode"] = True
-                out = (
-                    "PHY\tInterface\tDriver\t\tChipset\n"
-                    "phy0\twlan0\t\tath9k\t\tQualcomm Atheros\n\n"
-                    "(mac80211 monitor mode vif enabled for [phy0]wlan0 on [phy0]wlan0mon)\n"
-                    "(mac80211 station mode vif disabled for [phy0]wlan0)"
-                )
+        # ------------------- ЛОГИКА РЕЖИМА АТАКИ -------------------
+        if self.mode == "attack":
+            if clean_cmd == "ls" or clean_cmd.startswith("ls "):
+                if self.state["handshake_captured"]:
+                    output = f"{COLOR_CYAN}handshake.hc22000{COLOR_RESET}  wordlist.txt"
+                    hint = "Fayllar mavjud. Endi Hashcat yordamida parolni buzishingiz mumkin."
+                else:
+                    output = "wordlist.txt"
+                    hint = "Hozircha katalogda xesh fayli yo'q. Avval airmon-ng orqali monitor rejimini yoqing va airodump-ng yordamida handshake ushlang."
+
                 return {
-                    "status": "success",
-                    "output": out,
-                    "completed": False,
+                    "status": "info",
+                    "output": output,
+                    "hint": f"{COLOR_GREEN}{hint}{COLOR_RESET}",
                     "next_instruction": self.get_current_instruction()
                 }
 
-        # 4. airodump-ng
-        if "airodump-ng" in clean_cmd:
-            if not self.state["monitor_mode"]:
-                hint = "Tarmoq kartasi monitor rejimida emas! Avval airmon-ng yordamida monitor rejimini yoqing."
+            if "airmon-ng" in clean_cmd:
+                if "start" in clean_cmd and ("wlan0" in clean_cmd or "wlan0mon" in clean_cmd):
+                    self.state["monitor_mode"] = True
+                    out = (
+                        "PHY\tInterface\tDriver\t\tChipset\n"
+                        "phy0\twlan0\t\tath9k\t\tQualcomm Atheros\n\n"
+                        "(mac80211 monitor mode vif enabled for [phy0]wlan0 on [phy0]wlan0mon)\n"
+                        "(mac80211 station mode vif disabled for [phy0]wlan0)"
+                    )
+                    return {"status": "success", "output": out, "completed": False, "next_instruction": self.get_current_instruction()}
+
+            if "airodump-ng" in clean_cmd:
+                if not self.state["monitor_mode"]:
+                    hint = "Tarmoq kartasi monitor rejimida emas! Avval airmon-ng yordamida monitor rejimini yoqing."
+                    return {
+                        "status": "error",
+                        "output": "bash: airodump-ng: ERROR: Interface wlan0 is not in monitor mode.",
+                        "hint": f"{COLOR_GREEN}{hint}{COLOR_RESET}"
+                    }
+                else:
+                    self._simulate_generic_scan(delay_sec=3)
+                    self.state["handshake_captured"] = True
+                    out = "[+] WPA Handshake ushlandi!\n[+] Fayl saqlandi: handshake.hc22000"
+                    return {"status": "success", "output": out, "completed": False, "next_instruction": self.get_current_instruction()}
+
+            if "hashcat" in clean_cmd:
+                if not self.state["handshake_captured"]:
+                    hint = "Katalogda 'handshake.hc22000' fayli topilmadi! Avval airodump-ng orqali trafikni ushlang."
+                    return {
+                        "status": "error",
+                        "output": "hashcat: No hash file found.",
+                        "hint": f"{COLOR_GREEN}{hint}{COLOR_RESET}"
+                    }
+                else:
+                    self._simulate_hashcat(delay_sec=4)
+                    self.state["cracked"] = True
+                    return {"status": "success", "output": "Kvest muvaffaqiyatli yakunlandi!", "completed": True, "next_instruction": None}
+
+        # ------------------- ЛОГИКА РЕЖИМА ЗАЩИТЫ -------------------
+        else:
+            if clean_cmd == "ls" or clean_cmd.startswith("ls "):
+                output = "hostapd.conf  waidps.py  rules.json"
+                hint = "Tarmoq monitoringini boshlash uchun avval airmon-ng orqali monitor rejimini yoqing va waidps (yoki tshark) ni ishga tushiring."
                 return {
-                    "status": "error",
-                    "output": "bash: airodump-ng: ERROR: Interface wlan0 is not in monitor mode.",
-                    "hint": f"{COLOR_GREEN}{hint}{COLOR_RESET}"
-                }
-            else:
-                self._simulate_generic_scan(delay_sec=3)
-                self.state["handshake_captured"] = True
-                out = (
-                    "[+] WPA Handshake ushlandi!\n"
-                    "[+] Fayl saqlandi: handshake.hc22000"
-                )
-                return {
-                    "status": "success",
-                    "output": out,
-                    "completed": False,
+                    "status": "info",
+                    "output": output,
+                    "hint": f"{COLOR_GREEN}{hint}{COLOR_RESET}",
                     "next_instruction": self.get_current_instruction()
                 }
 
-        # 5. hashcat
-        if "hashcat" in clean_cmd:
-            if not self.state["handshake_captured"]:
-                hint = "Katalogda 'handshake.hc22000' fayli topilmadi! Avval airodump-ng orqali trafikni ushlang."
-                return {
-                    "status": "error",
-                    "output": "hashcat: No hash file found.",
-                    "hint": f"{COLOR_GREEN}{hint}{COLOR_RESET}"
-                }
-            else:
-                self._simulate_hashcat(delay_sec=4)
-                self.state["cracked"] = True
-                return {
-                    "status": "success",
-                    "output": "Kvest muvaffaqiyatli yakunlandi!",
-                    "completed": True,
-                    "next_instruction": None
-                }
+            if "airmon-ng" in clean_cmd:
+                if "start" in clean_cmd and ("wlan0" in clean_cmd or "wlan0mon" in clean_cmd):
+                    self.state["monitor_mode"] = True
+                    out = "(mac80211 monitor mode vif enabled for [phy0]wlan0 on [phy0]wlan0mon)"
+                    return {"status": "success", "output": out, "completed": False, "next_instruction": self.get_current_instruction()}
 
-        # 6. Произвольная команда -> Запрос к ИИ
+            if "waidps" in clean_cmd or "tshark" in clean_cmd:
+                if not self.state["monitor_mode"]:
+                    hint = "Tarmoq kartasi monitor rejimida emas! Avval airmon-ng start wlan0 buyrug'ini kiriting."
+                    return {
+                        "status": "error",
+                        "output": "ERROR: Interface wlan0 is not in monitor mode.",
+                        "hint": f"{COLOR_GREEN}{hint}{COLOR_RESET}"
+                    }
+                else:
+                    self._simulate_deauth_detection(delay_sec=3)
+                    self.state["attack_detected"] = True
+                    out = (
+                        f"{COLOR_RED}[!] OGOHLANTIRISH: Massive Deauth Attack aniqlandi!{COLOR_RESET}\n"
+                        f"{COLOR_YELLOW}[!] BSSID: AA:BB:CC:DD:EE:FF ga Deauth paketlari yuborilmoqda.{COLOR_RESET}\n"
+                        f"[+] Zayiflik: WPS yoqilgan va 802.11w (PMF) o'chirilgan."
+                    )
+                    return {"status": "success", "output": out, "completed": False, "next_instruction": self.get_current_instruction()}
+
+            if "wps_cli" in clean_cmd or "hostapd" in clean_cmd or "pmf" in clean_cmd.lower():
+                if not self.state["attack_detected"]:
+                    hint = "Hali tarmoqdagi hujum turi aniqlanmadi. Avval waidps yoki tshark orqali monitoring o'tkazing."
+                    return {
+                        "status": "error",
+                        "output": "Xatolik: Hujum turi va zayiflik aniqlanmagan.",
+                        "hint": f"{COLOR_GREEN}{hint}{COLOR_RESET}"
+                    }
+                else:
+                    self.state["hardened"] = True
+                    out = (
+                        f"{COLOR_GREEN}[+] WPS Muvaffaqiyatli o'chirildi.{COLOR_RESET}\n"
+                        f"{COLOR_GREEN}[+] 802.11w Management Frame Protection (PMF) yoqildi.{COLOR_RESET}\n"
+                        f"[+] Tarmoq Deauth hujumlaridan to'liq himoyalandi!"
+                    )
+                    return {"status": "success", "output": out, "completed": True, "next_instruction": None}
+
+        # В случае нераспознанной команды отправляем запрос в ИИ
         ai_hint = self._get_groq_ai_hint(clean_cmd) if self.use_ai else "Buyruqni tekshiring."
         return {
             "status": "error",

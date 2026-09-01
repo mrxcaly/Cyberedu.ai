@@ -43,6 +43,30 @@ def print_banner(title: str, description: str):
     print(f"{CYAN}{BOLD}└" + "─" * INNER_WIDTH + f"┘{RESET}")
 
 
+def show_mode_selection() -> str:
+    """Стартовое меню выбора режима лабораторной работы."""
+    os.system("clear")
+    print(f"{CYAN}{BOLD}===================================================={RESET}")
+    print(f"{YELLOW}{BOLD}          CYBEREDU.AI - WI-FI LAB REJIMLARI         {RESET}")
+    print(f"{CYAN}{BOLD}===================================================={RESET}\n")
+    print(f"{BOLD}[1]{RESET} ⚔️  {YELLOW}{BOLD}Wi-Fi Hujum (Attack Mode){RESET}")
+    print(f"    WPA2 Handshake ushlash va Hashcat orqali brutforz qilish.\n")
+    print(f"{BOLD}[2]{RESET} 🛡️  {GREEN}{BOLD}Wi-Fi Himoya (Defense Mode){RESET}")
+    print(f"    Deauth hujumlarini aniqlash, WPS'ni yopish va PMF (802.11w) yoqish.\n")
+
+    while True:
+        try:
+            choice = input(f"{CYAN}{BOLD}Rejimni tanlang (1 yoki 2): {RESET}").strip()
+            if choice == "1":
+                return "attack"
+            elif choice == "2":
+                return "defense"
+            print(f"{YELLOW}Iltimos, faqat 1 yoki 2 raqamini kiriting.{RESET}")
+        except (KeyboardInterrupt, EOFError):
+            print("\n\nChiqish...")
+            sys.exit(0)
+
+
 def get_kali_prompt() -> str:
     """Генерация двухстрочного промпта Kali Linux Zsh."""
     line1 = f"{GREEN}┌──({BLUE}{BOLD}root㉿kali{RESET}{GREEN})-[{RESET}{CYAN}~{RESET}{GREEN}]{RESET}\n"
@@ -51,7 +75,11 @@ def get_kali_prompt() -> str:
 
 
 def main():
-    engine = CyberGameEngine()
+    # 1. Запрос выбора режима
+    mode = show_mode_selection()
+
+    # 2. Запуск движка в выбранном режиме
+    engine = CyberGameEngine(mode=mode)
     print_banner(engine.quest["title"], engine.quest["description"])
 
     while not engine.is_completed():
