@@ -1,10 +1,15 @@
 import json
 import os
+import time
 import requests
 from dotenv import load_dotenv
 
 # Загружаем переменные из .env
 load_dotenv()
+
+# ANSI-коды для цвета в терминале
+COLOR_GREEN = "\033[92m"
+COLOR_RESET = "\033[0m"
 
 class CyberGameEngine:
     def __init__(self, quest_filepath: str, use_ai: bool = True):
@@ -31,7 +36,7 @@ class CyberGameEngine:
         default_hint = self.quest["steps"][self.current_step].get("hint") or "Bayroqlarni va buyruq sintaksisini tekshiring."
         
         if not self.api_key:
-            print("\n⚠️ [Groq]: GROQ_API_KEY не найден в файле .env!")
+            print(f"\n⚠️ [Groq]: GROQ_API_KEY не найден в файле .env!")
             return default_hint
 
         prompt = f"""
@@ -49,7 +54,6 @@ class CyberGameEngine:
             "Content-Type": "application/json"
         }
         
-        # max_tokens увеличено до 500, чтобы модели хватало места и на reasoning, и на ответ
         payload = {
             "model": "openai/gpt-oss-20b",
             "messages": [
@@ -71,7 +75,6 @@ class CyberGameEngine:
                 if content:
                     return content
                 
-                # Запасной вариант: если content пуст, забираем reasoning
                 reasoning = msg.get("reasoning", "").strip()
                 if reasoning:
                     return reasoning
@@ -91,6 +94,12 @@ class CyberGameEngine:
         clean_expected = step_data["expected_command"].strip()
 
         if clean_user == clean_expected:
+            # Обработка задержки (delay), если она указана в JSON
+            if "delay" in step_data:
+                delay_sec = step_data["delay"]
+                print(f"\n[*] Kutilmoqda... {delay_sec} soniya (Tarmoq skaner qilinmoqda...)")
+                time.sleep(delay_sec)
+
             self.current_step += 1
             completed = self.is_completed()
             return {
@@ -100,11 +109,15 @@ class CyberGameEngine:
                 "next_instruction": self.get_current_instruction() if not completed else None
             }
         else:
-            hint = self._get_groq_ai_hint(clean_user, clean_expected, step_data["instruction"]) if self.use_ai else step_data.get("hint", "")
+            raw_hint = self._get_groq_ai_hint(clean_user, clean_expected, step_data["instruction"]) if self.use_ai else step_data.get("hint", "")
+            
+            # Красим подсказку в зеленый
+            green_hint = f"{COLOR_GREEN}{raw_hint}{COLOR_RESET}" if raw_hint else ""
+            
             return {
                 "status": "error",
                 "output": f"bash: buyruq topilmadi yoki sintaksis xatosi: '{clean_user}'",
-                "hint": hint
+                "hint": green_hint
             }
 
     def is_completed(self) -> bool:

