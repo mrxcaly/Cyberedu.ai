@@ -1,0 +1,21 @@
+{
+  "quest_id": "wifi_wpa2_handshake",
+  "title": "Airodump-ng yordamida WPA2 Handshake-ni tutib olish",
+  "description": "Maqsad: Tarmoq kartasini monitoring rejimiga o'tkazish va mo'ljallangan Wi-Fi tarmog'ini aniqlash.",
+  "steps": [
+    {
+      "step_id": 1,
+      "instruction": "wlan0 interfeysini monitoring rejimiga o'tkazing.",
+      "expected_command": "airmon-ng start wlan0",
+      "output": "PHY\tInterface\tDriver\t\tChipset\nphy0\twlan0mon\tath9k\t\tAtheros AR9271\n\n(mac80211 monitor mode vif enabled for [phy0]wlan0 on [phy0]wlan0mon)",
+      "hint": "--- BU HABAR JSON FAYLDAN! ---"
+    },
+    {
+      "step_id": 2,
+      "instruction": "Kuzatuv interfeysida simsiz tarmoqlarni skanerlashni boshlang.",
+      "expected_command": "airodump-ng wlan0mon",
+      "output": "BSSID              PWR  Beacons    #Data, #/s  CH   MB   ENC CIPHER AUTH ESSID\n00:11:22:33:44:55  -42       25       10    0   6  130   WPA2 CCMP   PSK  Target_Home_WiFi",
+      "hint": "airodump-ng buyrug'ini va faol monitoring interfeysi nomini (wlan0mon) ko'rsating."
+    }
+  ]
+}
